@@ -1,3 +1,4 @@
+#!/usr/bin/emv python3
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -11,8 +12,8 @@ from progress.bar import Bar
 
 undelete_url="https://vj5pbopejlhcbz4n.onion.link/fa/%s"
 user = None
-domain="http://127.0.0.1:9292"
-#domain="https://faexport.boothale.net"
+#domain="http://127.0.0.1:9292"
+domain="https://faexport.boothale.net"
 postdir="posts"
 hydrus_key=None
 debug = True
