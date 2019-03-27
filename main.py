@@ -316,6 +316,8 @@ class UserDiscover:
         self.path="discover.pkl"
         self.expanded=set()
         self.refcounts={}
+        self.checkpointing_counter=0
+        self.checkpointing_interval=10
 
     def write(self):
         #recoverabl safe write
@@ -382,7 +384,14 @@ class UserDiscover:
                             else:
                                 del self.refcounts[ww]
                     self.expanded.add(w)
-                    self.write()
+
+                    #begin checkpointing at regular intervala
+                    if self.checkpointing_counter == 0:
+                        self.write()
+                    self.checkpointing_counter +=1
+                    self.checkpointing_counter %= self.checkpointing_interval
+                    #end checkpointing logic
+
                 bar.next()
             bar.finish()
     
@@ -393,6 +402,13 @@ class UserDiscover:
             i+=1
             if i >= n:
                 break
+    
+    def upgrade(self):
+        if not hasattr(self, 'checkpointing_counter'):
+            self.checkpointing_counter=0
+        if not hasattr(self, 'checkpointing_interval'):
+            self.checkpointing_interval=10
+
 
 def print_watchlist(user,prefix=""):
     ul = get_watchlist(user)
@@ -438,6 +454,9 @@ def load_persistant(persist_path):
         os.rename(backup,persist_path)
         with open(persist_path,"rb") as f:
             persist = pickle.load(f)
+    
+    if hasattr(persist, 'upgrade'):
+            persist.upgrade()
     return persist
 
 # import argparse
