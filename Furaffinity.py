@@ -1,4 +1,4 @@
-import requests,re,dateparser
+import requests,re,dateparser,json
 from bs4 import BeautifulSoup as bs4
 try:
     from urlparse import urljoin  # Python2
@@ -8,6 +8,9 @@ except ImportError:
 GALLERY_URL="http://www.furaffinity.net/gallery/{}"
 USER_URL="http://www.furaffinity.net/user/{}"
 s = requests.Session() 
+def load_cookies_file(path="cookies.json"):
+    with open(path) as f:
+        s.cookies.update(json.load(f))
 
 class ScrapeObj:
     
@@ -92,11 +95,11 @@ class Post(ScrapeObj):
         s=""
         for ee in e.contents:
             s+=str(ee)
-        return s.strip()
+        return s.replace("<br/>","\n").strip()
 
     @property
     def download_link(self):
-        return self.parse().find("a",text="Download").attrs["href"]
+        return "http:"+self.parse().find("a",text="Download").attrs["href"]
     
 
     @property
@@ -112,10 +115,50 @@ class Post(ScrapeObj):
         taglinks=self.parse().select(self.tag_selector+"> a")
         tags = (x.text.strip() for x in taglinks)
         return tags
+    
+    @property
+    def is_favourite(self):
+        raise NotImplementedError()
+    def add_to_favourites(self):
+        raise NotImplementedError()
+    
+    def remove_from_favourites(self):
+        raise NotImplementedError()
+    
+    def rescue(self,seed_post_id):
+        seed_post=Post(seed_post_id)
+
+        posts=[seed_post]
+
+        print("------------")
+        print(seed_post.title)
+        print("------------")
+        print(seed_post.description)
+        print("------------")
+        print(seed_post.download_link)
+        print("------------")
+        print(list(seed_post.tags))
+        print("------------")
+        print("------------")
+        nextp = seed_post.next
+        prevp = seed_post.prev
+
+        while nextp is not None:
+            posts.append(nextp)
+            nextp=nextp.next
+
+        while prevp is not None:
+            posts.append(prevp)
+            prevp=prevp.prev
+
+        print(posts)
+    
 
 
 class User(ScrapeObj):
     USER_URL="http://www.furaffinity.net/user/{}"
+    WATCHING_URL="http://www.furaffinity.net/watchlist/by/{}}/"
+    WATCHED_BY_URL="http://www.furaffinity.net/watchlist/to/{}}/"
     USER_INFO_CLASS="user-info"
     USER_CONTACT_CLASS="user-contacts"
     CONTACT_ITEM_CLASS="classic-contact-info-item"
@@ -129,30 +172,36 @@ class User(ScrapeObj):
         l=e.find_all('a')
         return (x.attrs['href'] for x in l)
     
+    @property
+    def watchlist(self):
+        raise NotImplementedError()
+    @property
+    def is_dead(self):
+        try:
+            self.body
+        except FileNotFoundError as e:
+            return True
+        return False
+
+    @property
+    def is_watched_by_session_user(self):
+        raise NotImplementedError()
+    
+    @property
+    def is_watching_session_user(self):
+        raise NotImplementedError()
+    def start_watching(self):
+        raise NotImplementedError()
+    def stop_watching(self):
+        raise NotImplementedError()
+        
+
+    
 class Gallery(ScrapeObj):
     POST_URL_REL_PATTERN=re.compile(r'/view/\d+/?')
-
+    FAVOURITE_GALLER_NEXT=re.compile(r'/favourites/[^/]+/[^/]/next')
     @property
     def posts(self):
         self.soup.find_all('a',href=self.POST_URL_REL_PATTERN)
 
-
-seed_post=Post()
-
-posts=[seed_post]
-print(seed_post.title)
-print(seed_post.description)
-print(seed_post.download_link)
-print(list(seed_post.tags))
-nextp = seed_post.next
-prevp = seed_post.prev
-
-while nextp is not None:
-    posts.append(nextp)
-    nextp=nextp.next
-
-while prevp is not None:
-    posts.append(prevp)
-    prevp=prevp.prev
-
-print(posts)
+load_cookies_file()
